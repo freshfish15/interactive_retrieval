@@ -33,10 +33,8 @@ This project uses the BLIP model with LLM API to extract and retrieve image cont
      ```
    - Customize the query and retrieval parameters:
      ```python
-     query = "your text query here"  # e.g., "people playing sports"
-     num_top_similar = 16  # Number of initial similar images
-     num_representatives = 8  # Number of representative images
-     dialogue_round = 2  # Number of dialogue rounds
+     DEFAULT_N_CANDIDATES = 50  # Number of initial similar images
+     DEFAULT_M_REPRESENTATIVES = 10 # Number of representative images
      ```
 
 ### Running the Project
