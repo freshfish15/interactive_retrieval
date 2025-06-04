@@ -21,22 +21,19 @@ RETRIEVER_MODEL_NAME = "Salesforce/blip-itm-large-coco"
 CAPTION_MODEL_NAME = "Salesforce/blip-image-captioning-large"
 
 # Path for embeddings used in the image retrieval step
-RETRIEVAL_GALLERY_PICKLE_PATH = '/home/shangrong/research/demo_website/backend/blip_logic/embeddings/visdial_val2018_gallery_embeddings.pkl'
+RETRIEVAL_GALLERY_PICKLE_PATH = './embeddings/visdial_val2018_gallery_embeddings.pkl'
 
 # Path for embeddings/data potentially related to captioning (from your original script)
 # NOTE: The effective logic in your terminal script did not directly use data from
 # this specific pickle for the caption_instance's operation variables.
 # If specific data from here (e.g., a distinct list of captionable image IDs)
 # is needed, its usage will need to be explicitly defined.
-CAPTION_GALLERY_PICKLE_PATH = '/home/shangrong/research/demo_website/backend/blip_logic/embeddings/visdial_val2018_embeddings_caption_large.pkl' # Currently noted, but not loaded by default unless a specific use is defined.
+CAPTION_GALLERY_PICKLE_PATH = './embeddings/visdial_val2018_embeddings_caption_large.pkl' # Currently noted, but not loaded by default unless a specific use is defined.
 
-IMAGE_BASE_DIRECTORY = "/home/shangrong/research/datasets/VisualDialog_val2018" # User specific
-# LLM_API_KEY = os.getenv("LLM_API_KEY", "YOUR_LLM_API_KEY_HERE")
+IMAGE_BASE_DIRECTORY = "your/path/to/VisualDialog_val2018" # Update this
 # LLM_BASE_URL = os.getenv("LLM_BASE_URL", "YOUR_LLM_BASE_URL_HERE")
-# LLM_API_KEY = "sk-mR9xMzFRbOWD21nzrCC8mnjTXYeIxEaKVho0ftGXw5VzQ3VM"
-# LLM_BASE_URL = "https://tbnx.plus7.plus/v1"
-LLM_API_KEY = "xai-E2jU2fHXhbqB6uxaUHsS24Ou0ECXWpnbdkNOydZsUuSNldvBdrBizADkSBnijXQY5hijMcIqq4WsvPEm"
-LLM_BASE_URL = "https://api.x.ai/v1"
+LLM_API_KEY = ""
+LLM_BASE_URL = ""
 
 # --- Global Variables for Models and Data ---
 retriever_instance = PlugIRStyleRetriever(model_name_or_path=RETRIEVER_MODEL_NAME)
