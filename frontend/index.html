@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Image Retrieval</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom scrollbar for webkit browsers */
+        .chat-messages::-webkit-scrollbar {
+            width: 8px;
+        }
+        .chat-messages::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        .chat-messages::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 10px;
+        }
+        .chat-messages::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+        .image-gallery::-webkit-scrollbar {
+            width: 8px;
+        }
+        .image-gallery::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        .image-gallery::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 10px;
+        }
+        .image-gallery::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+        .message-bubble {
+            max-width: 75%;
+            padding: 10px 15px;
+            border-radius: 20px;
+            word-wrap: break-word;
+        }
+        .user-message .message-bubble {
+            background-color: #007bff; /* Blue for user */
+            color: white;
+            margin-left: auto;
+            border-bottom-right-radius: 5px;
+        }
+        .bot-message .message-bubble {
+            background-color: #e9e9eb; /* Light gray for bot */
+            color: #333;
+            margin-right: auto;
+            border-bottom-left-radius: 5px;
+        }
+        .message-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            flex-shrink: 0; /* Prevents icon from shrinking */
+        }
+        .user-message .message-icon {
+            background-color: #007bff;
+            color: white;
+            margin-left: 8px;
+        }
+        .bot-message .message-icon {
+            background-color: #6c757d; /* Darker gray for bot icon */
+            color: white;
+            margin-right: 8px;
+        }
+        .loading-spinner {
+            border: 4px solid #f3f3f3; /* Light grey */
+            border-top: 4px solid #3498db; /* Blue */
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+            margin: 5px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans">
+    <div class="flex h-screen">
+        <div class="w-full md:w-1/2 lg:w-2/5 flex flex-col bg-white border-r border-gray-300">
+            <header class="bg-gray-800 text-white p-4 text-center">
+                <h1 class="text-xl font-semibold">Chat & Retrieve</h1>
+            </header>
+
+            <div id="chatMessages" class="flex-1 p-4 space-y-4 overflow-y-auto chat-messages">
+                <div class="bot-message flex items-end">
+                    <div class="message-icon">🤖</div>
+                    <div class="message-bubble">
+                        <p>Hello! Initializing session...</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-4 border-t border-gray-300 bg-gray-50">
+                <div id="loadingIndicator" class="hidden text-center mb-2">
+                    <div class="loading-spinner"></div>
+                    <p class="text-sm text-gray-500">Thinking...</p>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <input type="text" id="messageInput" class="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="Type your message or answer..." disabled>
+                    <button id="sendButton" class="bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50" disabled>
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5">
+                            <path d="M3.105 13.427a1.5 1.5 0 00.948 1.899l4.762 1.587a1.5 1.5 0 001.36-.165l8.563-6.423a1.5 1.5 0 000-2.59L10.175.727a1.5 1.5 0 00-1.36-.165L4.053 2.15a1.5 1.5 0 00-.948 1.899L3.97 9.388l-2.053 1.026a.75.75 0 000 1.33l2.053 1.026.135.657z" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="w-full md:w-1/2 lg:w-3/5 flex flex-col bg-gray-200">
+            <header class="bg-gray-700 text-white p-4 text-center">
+                <h2 class="text-xl font-semibold">Retrieved Images</h2>
+            </header>
+            <div id="imageGallery" class="flex-1 p-4 overflow-y-auto image-gallery grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <p id="galleryPlaceholder" class="col-span-full text-center text-gray-500 mt-10">Images will appear here once retrieved.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const chatMessages = document.getElementById('chatMessages');
+        const messageInput = document.getElementById('messageInput');
+        const sendButton = document.getElementById('sendButton');
+        const imageGallery = document.getElementById('imageGallery');
+        const galleryPlaceholder = document.getElementById('galleryPlaceholder');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+
+        const BACKEND_URL = 'http://localhost:8001'; // Replace if your backend is elsewhere
+        let sessionId = null;
+        let isWaitingForAnswer = false;
+
+        function addChatMessage(message, sender) {
+            const messageWrapper = document.createElement('div');
+            messageWrapper.classList.add('flex', 'items-end', sender === 'user' ? 'user-message' : 'bot-message');
+            
+            const iconDiv = document.createElement('div');
+            iconDiv.classList.add('message-icon');
+            iconDiv.textContent = sender === 'user' ? '🧑' : '🤖';
+            
+            const bubbleDiv = document.createElement('div');
+            bubbleDiv.classList.add('message-bubble');
+            bubbleDiv.innerHTML = `<p>${message.replace(/\n/g, '<br>')}</p>`;
+
+            if (sender === 'user') {
+                messageWrapper.classList.add('justify-end');
+                messageWrapper.appendChild(bubbleDiv);
+                messageWrapper.appendChild(iconDiv);
+            } else {
+                messageWrapper.appendChild(iconDiv);
+                messageWrapper.appendChild(bubbleDiv);
+            }
+            
+            chatMessages.appendChild(messageWrapper);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function displayImages(images) {
+            imageGallery.innerHTML = '';
+            if (images && images.length > 0) {
+                galleryPlaceholder.classList.add('hidden');
+                images.forEach(imgData => {
+                    const imgContainer = document.createElement('div');
+                    imgContainer.classList.add('bg-white', 'p-2', 'rounded-lg', 'shadow');
+                    
+                    const imgElement = document.createElement('img');
+                    imgElement.src = `${BACKEND_URL}${imgData.image_url}`;
+                    imgElement.alt = imgData.caption || imgData.image_id;
+                    imgElement.classList.add('w-full', 'h-48', 'object-cover', 'rounded');
+                    imgElement.onerror = () => { 
+                        imgElement.src = `https://placehold.co/300x200/eee/ccc?text=Image+Not+Found`;
+                        imgElement.alt = 'Image not found';
+                    };
+
+                    const captionElement = document.createElement('p');
+                    captionElement.classList.add('text-xs', 'text-gray-700', 'mt-1', 'truncate');
+                    captionElement.textContent = imgData.caption || `Image ID: ${imgData.image_id}`;
+                    captionElement.title = imgData.caption || `Image ID: ${imgData.image_id}`;
+
+                    imgContainer.appendChild(imgElement);
+                    imgContainer.appendChild(captionElement);
+                    imageGallery.appendChild(imgContainer);
+                });
+            } else {
+                galleryPlaceholder.classList.remove('hidden');
+                galleryPlaceholder.textContent = 'No images found or an error occurred during retrieval.';
+            }
+        }
+        
+        function showLoading(isLoading) {
+            if (isLoading) {
+                loadingIndicator.classList.remove('hidden');
+                sendButton.disabled = true;
+                messageInput.disabled = true;
+            } else {
+                loadingIndicator.classList.add('hidden');
+                sendButton.disabled = false;
+                messageInput.disabled = false;
+                messageInput.focus();
+            }
+        }
+
+        async function initializeSession() {
+            try {
+                showLoading(true);
+                const response = await fetch(`${BACKEND_URL}/initiate_session`);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status} - ${response.statusText}`);
+                }
+                sessionId = await response.text();
+                console.log('Session initialized:', sessionId);
+                addChatMessage("Session started. Please enter your image query.", "bot");
+            } catch (error) {
+                console.error('Error initializing session:', error);
+                addChatMessage(`Error initializing session: ${error.message}. Please ensure the backend is running and refresh.`, "bot");
+                // No alert here to prevent blocking
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        async function getLLMQuestion() {
+            if (!sessionId) return;
+            console.log("Requesting LLM question...");
+            showLoading(true);
+            try {
+                const response = await fetch(`${BACKEND_URL}/generate_question_via_LLM`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ session_id: sessionId })
+                    });
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({ detail: "Could not parse error from LLM question generation" }));
+                    throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json();
+                if (data.question) {
+                    addChatMessage(data.question, "bot");
+                    isWaitingForAnswer = true;
+                } else if (data.system_message) {
+                    addChatMessage(data.system_message, "bot");
+                    isWaitingForAnswer = false;
+                } else {
+                    addChatMessage("I'm ready for your next input or refinement.", "bot");
+                    isWaitingForAnswer = false;
+                }
+            } catch (error) {
+                console.error('Error fetching LLM question:', error);
+                addChatMessage(`Error getting next question: ${error.message}`, "bot");
+                isWaitingForAnswer = false; // Reset if error
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        async function handleSendMessage() {
+            const messageText = messageInput.value.trim();
+            if (!messageText || !sessionId) return;
+
+            addChatMessage(messageText, "user");
+            messageInput.value = '';
+            showLoading(true);
+            let retrieveResponseData;
+
+            try {
+                if (!isWaitingForAnswer) {
+                    console.log("Performing initial retrieve...");
+                    const retrieveResponse = await fetch(`${BACKEND_URL}/initiate_retrieve`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ initial_query: messageText, session_id: sessionId })
+                    });
+                    if (!retrieveResponse.ok) {
+                        const errorData = await retrieveResponse.json().catch(() => ({ detail: "Could not parse error from initial retrieval" }));
+                        throw new Error(errorData.detail || `HTTP error! status: ${retrieveResponse.status}`);
+                    }
+                    retrieveResponseData = await retrieveResponse.json();
+                } else {
+                    console.log("Performing reformulation and retrieve...");
+                    // Your backend signature: async def reformulate_query_and_retrieve(session_id: str, answer: str)
+                    // This implies session_id and answer are path or query parameters.
+                    // Sending as query parameters for a POST request:
+                    const reformulateResponse = await fetch(`${BACKEND_URL}/reformulate_query_via_LLM_and_retrieve?session_id=${sessionId}&answer=${encodeURIComponent(messageText)}`, {
+                        method: 'POST',
+                        // No body needed if parameters are in URL, or an empty one if POST requires it.
+                        // headers: { 'Content-Type': 'application/json' }, // Only if sending JSON body
+                        // body: JSON.stringify({}) // If POST needs a body, even if empty and params in URL
+                    });
+
+                    if (!reformulateResponse.ok) {
+                        const errorData = await reformulateResponse.json().catch(() => ({ detail: "Could not parse error from reformulation" }));
+                        throw new Error(errorData.detail || `HTTP error! status: ${reformulateResponse.status}`);
+                    }
+                    retrieveResponseData = await reformulateResponse.json();
+                    console.log("redisplaying images...")
+                    displayImages(retrieveResponseData.retrieved_images);
+                }
+
+                displayImages(retrieveResponseData.retrieved_images);
+                if (retrieveResponseData.system_message) {
+                    addChatMessage(retrieveResponseData.system_message, "bot");
+                }
+                
+                // After any image retrieval, get the next LLM question
+                await getLLMQuestion();
+
+            } catch (error) {
+                console.error('Error processing message:', error);
+                addChatMessage(`Error: ${error.message}`, "bot");
+                displayImages([]); // Clear images on error or show placeholder
+                isWaitingForAnswer = false; 
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        sendButton.addEventListener('click', handleSendMessage);
+        messageInput.addEventListener('keypress', (event) => {
+            if (event.key === 'Enter') {
+                handleSendMessage();
+            }
+        });
+
+        initializeSession();
+    </script>
+</body>
+</html>
