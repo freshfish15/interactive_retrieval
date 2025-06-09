@@ -43,6 +43,6 @@ Run the main script:
 cd backend
 uvicorn main:app --reload --host 0.0.0.0 --port 8001
 cd frontend
-python python3 -m http.server 8081
+python -m http.server 8081
 ```
 
